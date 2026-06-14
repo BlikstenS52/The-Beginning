@@ -136,6 +136,11 @@ class Missile(Sprite):
             self.setheading(player.heading())
             self.showturtle()
             self.status = "firing"
+            try:
+                if 'missile_sound' in globals() and missile_sound is not None:
+                    missile_sound.play()
+            except Exception:
+                pass
 
     def move(self):
         if self.status == "ready":
