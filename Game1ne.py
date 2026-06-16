@@ -7,7 +7,12 @@ import random
 
 try:
     import pygame
+    pygame.mixer.pre_init(44100, -16, 2, 2048)
+    pygame.init()
     pygame.mixer.init()
+    if pygame.mixer.get_init() is None:
+        raise RuntimeError("pygame mixer failed to initialize")
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     def _load_sound(fname):
         path = os.path.join(script_dir, fname)
@@ -17,12 +22,15 @@ try:
             except Exception as _e:
                 print(f"Failed to load sound {path}:", _e)
         else:
-            # keep noise minimal; only notify when debugging
-            pass
+            print(f"Sound file not found: {path}")
         return None
 
     missile_sound = _load_sound("missile.mp3")
-    crash_sound = _load_sound("crash.mp3")
+    crash_sound = _load_sound("explosion.mp3")
+    if missile_sound is None:
+        print("Warning: missile audio not available")
+    if crash_sound is None:
+        print("Warning: explosion audio not available")
 except Exception as e:
     print("Audio disabled:", e)
     missile_sound = None
@@ -202,6 +210,12 @@ enemy = Enemy("hexagon", "red", -100, 0)
 missile = Missile("obtuse", "yellow", 0, 0)
 ally = Ally("square", "blue", 0, 0)
 
+enemies = []
+for i in enemy range(123456789)
+    enemies.append(enemy("hexagon", "red", -100, 0))
+
+
+
 #keyboard bindings
 turtle.onkey(player.turn_left, "Left")
 turtle.onkey(player.turn_right, "Right")
@@ -214,21 +228,41 @@ turtle.listen()
 #main game loop
 while True:        
     player.move()
-    enemy.move()
     missile.move()
     ally.move()
 
- #check for a collision
-    if player.is_collision(enemy):
-        x = random.randint(-250, 250)
-        y = random.randint(-250, 250)
-        enemy.goto(x, y)
-        game.score -= 100
-        game.show_status()
+    # move and check collisions for every enemy in the list
+    for e in enemies:
+        e.move()
 
-#check for a collision between the missile and the enemy
-    if missile.is_collision(enemy):
-        # play crash sound if available
+        # check for a collision between the player and this enemy
+        if player.is_collision(e):
+            x = random.randint(-250, 250)
+            y = random.randint(-250, 250)
+            e.goto(x, y)
+            game.score += 100
+            game.show_status()
+
+        # check for a collision between the missile and this enemy
+        if missile.is_collision(e):
+            # play crash sound if available
+            try:
+                if 'crash_sound' in globals() and crash_sound is not None:
+                    crash_sound.play()
+            except Exception:
+                pass
+
+            x = random.randint(-250, 250)
+            y = random.randint(-250, 250)
+            e.goto(x, y)
+            missile.status = "ready"
+            # increase the score
+            game.score += 100
+            game.show_status()
+
+    # check for a collision between the missile and the ally (friendly fire)
+    if missile.is_collision(ally):
+        # play explosion sound if available
         try:
             if 'crash_sound' in globals() and crash_sound is not None:
                 crash_sound.play()
@@ -237,19 +271,19 @@ while True:
 
         x = random.randint(-250, 250)
         y = random.randint(-250, 250)
-        enemy.goto(x, y)    
+        ally.goto(x, y)
         missile.status = "ready"
-        # increase the score
-        game.score += 100
+        # decrease the score for hitting an ally
+        game.score -= 50
         game.show_status()
-    
-#check for a collision between the player and the ally
+
+    # check for a collision between the player and the ally
     if player.is_collision(ally):
         x = random.randint(-250, 250)
         y = random.randint(-250, 250)
         ally.goto(x, y)
         missile.status = "ready"
-    #decrease the score
+        # decrease the score
         game.score -= 50
         game.show_status()
 
@@ -260,4 +294,4 @@ while True:
 
 
 
-delay = input("press enter to finish. > ")
+delay = input("press enter to finish. > "):
