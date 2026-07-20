@@ -3,7 +3,11 @@
 #SAMSON BLIKSTEN is the greatest to ever do it
 
 import os
+import platform
 import random
+import time
+
+script_dir = os.path.dirname(os.path.abspath(__file__))
 
 try:
     import pygame
@@ -13,7 +17,6 @@ try:
     if pygame.mixer.get_init() is None:
         raise RuntimeError("pygame mixer failed to initialize")
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
     def _load_sound(fname):
         path = os.path.join(script_dir, fname)
         if os.path.isfile(path):
@@ -36,18 +39,39 @@ except Exception as e:
     missile_sound = None
     crash_sound = None
 
+
+def _play_sound(sound_obj, frequency=1000, duration_ms=180):
+    if sound_obj is not None:
+        try:
+            sound_obj.play()
+            return
+        except Exception:
+            pass
+
+    if platform.system() == "Windows":
+        try:
+            import winsound
+            winsound.Beep(frequency, duration_ms)
+        except Exception:
+            pass
+
 #import the Turtle module
 import turtle
+screen = turtle.Screen()
+screen.setup(800, 800)
+screen.title("Space Game")
 turtle.fd(0)
 #set the animation speed to the maximum
 turtle.speed(0)
 #change the background color
 turtle.bgcolor("black")
+#Change the background image
+turtle.bgpic(os.path.join(script_dir, "starfield.GIF"))  # GIF, PNG, or PPM format
 #hide default turtle
 turtle.ht()
 #this saves memory
 turtle.setundobuffer(1)
-#this speeds up drawing
+#use a normal redraw rate so the game feels smooth instead of too fast
 turtle.tracer(1)
 
 class Sprite(turtle.Turtle):
@@ -113,7 +137,7 @@ class Player(Sprite):
 class Enemy(Sprite):
     def __init__(self, spriteshape, color, startx, starty):
         Sprite.__init__(self, spriteshape,color, startx, starty)
-        self.speed = 6
+        self.speed = 4
         self.setheading(random.randint(0, 360))
 
 
@@ -126,7 +150,7 @@ class Enemy(Sprite):
 class Ally(Sprite):
     def __init__(self, spriteshape, color, startx, starty):
         Sprite.__init__(self, spriteshape,color, startx, starty)
-        self.speed = 8
+        self.speed = 4
         self.setheading(random.randint(0, 360))
 
 class Missile(Sprite):
@@ -146,7 +170,7 @@ class Missile(Sprite):
             self.status = "firing"
             try:
                 if 'missile_sound' in globals() and missile_sound is not None:
-                    missile_sound.play()
+                    _play_sound(missile_sound, frequency=1200, duration_ms=120)
             except Exception:
                 pass
 
@@ -206,92 +230,98 @@ game.show_status()
 
 #Create my sprites
 player = Player("triangle", "white", 0, 0)
-enemy = Enemy("hexagon", "red", -100, 0)
+#enemy = Enemy("hexagon", "red", -100, 0)
 missile = Missile("obtuse", "yellow", 0, 0)
-ally = Ally("square", "blue", 0, 0)
+#ally = Ally("square", "blue", 100, 0)
 
 enemies = []
-for i in enemy range(123456789)
-    enemies.append(enemy("hexagon", "red", -100, 0))
+for i in range(6):
+    enemies.append(Enemy("hexagon", "red", -100, 0))
+
+allies = []
+for i in range(6):
+    allies.append(Ally("square", "blue", 100, 0))
 
 
 
 #keyboard bindings
-turtle.onkey(player.turn_left, "Left")
-turtle.onkey(player.turn_right, "Right")
-turtle.onkey(player.accelerate, "Up")
-turtle.onkey(player.decelerate, "Down")
-turtle.onkey(missile.fire, "space")
-turtle.listen()
+screen.onkey(player.turn_left, "Left")
+screen.onkey(player.turn_right, "Right")
+screen.onkey(player.accelerate, "Up")
+screen.onkey(player.decelerate, "Down")
+screen.onkey(missile.fire, "space")
+screen.listen()
 
 
 #main game loop
-while True:        
+while True:
+    turtle.update()
+
     player.move()
     missile.move()
-    ally.move()
 
-    # move and check collisions for every enemy in the list
-    for e in enemies:
-        e.move()
+    for enemy in enemies:
+        enemy.move()
 
         # check for a collision between the player and this enemy
-        if player.is_collision(e):
+        if player.is_collision(enemy):
             x = random.randint(-250, 250)
             y = random.randint(-250, 250)
-            e.goto(x, y)
+            enemy.goto(x, y)
             game.score += 100
             game.show_status()
 
         # check for a collision between the missile and this enemy
-        if missile.is_collision(e):
+        if missile.status == "firing" and missile.is_collision(enemy):
             # play crash sound if available
             try:
                 if 'crash_sound' in globals() and crash_sound is not None:
-                    crash_sound.play()
+                    _play_sound(crash_sound, frequency=900, duration_ms=220)
             except Exception:
                 pass
 
             x = random.randint(-250, 250)
             y = random.randint(-250, 250)
-            e.goto(x, y)
+            enemy.goto(x, y)
             missile.status = "ready"
             # increase the score
             game.score += 100
             game.show_status()
 
-    # check for a collision between the missile and the ally (friendly fire)
-    if missile.is_collision(ally):
-        # play explosion sound if available
-        try:
-            if 'crash_sound' in globals() and crash_sound is not None:
-                crash_sound.play()
-        except Exception:
-            pass
+    for ally in allies:
+        ally.move()
 
-        x = random.randint(-250, 250)
-        y = random.randint(-250, 250)
-        ally.goto(x, y)
-        missile.status = "ready"
-        # decrease the score for hitting an ally
-        game.score -= 50
-        game.show_status()
+        # check for a collision between the missile and each ally (friendly fire)
+        if missile.status == "firing" and missile.is_collision(ally):
+            # play explosion sound if available
+            try:
+                if 'crash_sound' in globals() and crash_sound is not None:
+                    _play_sound(crash_sound, frequency=900, duration_ms=220)
+            except Exception:
+                pass
 
-    # check for a collision between the player and the ally
-    if player.is_collision(ally):
-        x = random.randint(-250, 250)
-        y = random.randint(-250, 250)
-        ally.goto(x, y)
-        missile.status = "ready"
-        # decrease the score
-        game.score -= 50
-        game.show_status()
+            x = random.randint(-250, 250)
+            y = random.randint(-250, 250)
+            ally.goto(x, y)
+            missile.status = "ready"
+            # decrease the score for hitting an ally
+            game.score -= 50
+            game.show_status()
 
-
-
-
-
+        # check for a collision between the player and each ally
+        if player.is_collision(ally):
+            x = random.randint(-250, 250)
+            y = random.randint(-250, 250)
+            ally.goto(x, y)
+            missile.status = "ready"
+            # decrease the score
+            game.score -= 50
+            game.show_status()
 
 
 
-delay = input("press enter to finish. > "):
+
+
+time.sleep(0.03)
+
+delay = input("press enter to finish. > ")                        
